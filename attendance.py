@@ -46,7 +46,26 @@ class AttendanceLogger:
             
             conn.commit()
             conn.close()
-            return f"{action} Logged (DB) at {time_str}"
+            
+            # --- DUAL LOGGING START ---
+            # Also write to CSV for easy viewing
+            log_dir = "logs"
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            csv_path = os.path.join(log_dir, f"attendance_{date_str}.csv")
+            
+            # Check if header needed
+            needs_header = not os.path.exists(csv_path)
+            
+            import csv
+            with open(csv_path, "a", newline="") as f:
+                writer = csv.writer(f)
+                if needs_header:
+                    writer.writerow(["Name", "Action", "Time", "Date"])
+                writer.writerow([name, action, time_str, date_str])
+            # --- DUAL LOGGING END ---
+
+            return f"{action} Logged (DB+CSV) at {time_str}"
             
         except sqlite3.Error as e:
             return f"DB Error: {e}"
