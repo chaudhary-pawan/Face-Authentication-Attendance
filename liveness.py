@@ -1,64 +1,64 @@
+import cv2
 import numpy as np
 
-def euclidean_dist(ptA, ptB):
-    return np.linalg.norm(np.array(ptA) - np.array(ptB))
-
-def eye_aspect_ratio(eye):
-    # compute the euclidean distances between the two sets of
-    # vertical eye landmarks (x, y)-coordinates
-    A = euclidean_dist(eye[1], eye[5])
-    B = euclidean_dist(eye[2], eye[4])
-
-    # compute the euclidean distance between the horizontal
-    # eye landmark (x, y)-coordinates
-    C = euclidean_dist(eye[0], eye[3])
-
-    if C == 0:
-        return 0.0
-
-    # compute the eye aspect ratio
-    ear = (A + B) / (2.0 * C)
-
-    # return the eye aspect ratio
-    return ear
-
 class LivenessDetector:
-    def __init__(self, ear_threshold=0.25, consecutive_frames=3):
-        self.ear_threshold = ear_threshold
+    def __init__(self, ear_threshold=None, consecutive_frames=3):
+        # Thresholds irrelevant for Haar, we count frames where eyes are NOT detected
         self.consecutive_frames = consecutive_frames
         self.blink_counter = 0
         self.total_blinks = 0
-        self.eye_closed = False
-
-    def check_liveness(self, face_landmarks):
-        """
-        updates blink status based on face landmarks.
-        face_landmarks: dictionary of landmarks from face_recognition library.
-        Returns: True if 'live' action (blink) is detected recently (cumulative), 
-                 or simply current EAR for UI display.
-        """
+        self.eyes_closed = False
         
-        # dlib/face_recognition landmarks:
-        # left_eye: points 36-41 (indices in 0-67 range, but face_recognition returns dict)
-        left_eye = face_landmarks['left_eye']
-        right_eye = face_landmarks['right_eye']
+        # Load Haar Cascades
+        try:
+            self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        except AttributeError:
+             print("Error loading Haar Cascades.")
+             self.eye_cascade = None
 
-        ear_left = eye_aspect_ratio(left_eye)
-        ear_right = eye_aspect_ratio(right_eye)
-
-        ear = (ear_left + ear_right) / 2.0
-
+    def check_liveness(self, frame, face_roi_coords=None):
+        """
+        Checks for blinks using Haar Cascade Eye detection.
+        If eyes are NOT detected in the face region, we assume closed (blink).
+        frame: The full video frame.
+        face_roi_coords: (x, y, w, h) of the face. If None, it tries to find one or skips.
+        """
+        if self.eye_cascade is None:
+            return 0.0, False, 0
+            
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # If no ROI provided, we can't reliably check eyes (might find random eyes in bg)
+        if face_roi_coords is None:
+            return 0.0, False, self.total_blinks
+            
+        (x, y, w, h) = face_roi_coords
+        roi_gray = gray[y:y+h, x:x+w]
+        
+        # Detect eyes
+        # scaleFactor=1.1, minNeighbors=5-10 implies reliable detection
+        eyes = self.eye_cascade.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=10, minSize=(20, 20))
+        
         is_blinking = False
+        num_eyes = len(eyes)
         
-        if ear < self.ear_threshold:
+        # Logic: Normal = 2 eyes. Blink = 0 eyes.
+        # We need to be careful of "Missed detection" vs "Blink".
+        # We assume if face is stable and eyes disappear, it's a blink.
+        
+        if num_eyes < 1: # Eyes closed
             self.blink_counter += 1
-            self.eye_closed = True
+            self.eyes_closed = True
         else:
-            if self.eye_closed and self.blink_counter >= self.consecutive_frames:
+            # Eyes open
+            if self.eyes_closed and self.blink_counter >= 1: # Was closed for at least 1 frame
                 self.total_blinks += 1
                 is_blinking = True
             
             self.blink_counter = 0
-            self.eye_closed = False
+            self.eyes_closed = False
 
-        return ear, is_blinking, self.total_blinks
+        # Return "EAR" as 0.0 or 1.0 just for UI
+        fake_ear = 0.3 if num_eyes >= 1 else 0.0
+        
+        return fake_ear, is_blinking, self.total_blinks
