@@ -156,6 +156,10 @@ class AttendanceApp(ctk.CTk):
         self.log_textbox.pack(pady=20, padx=20, fill="x")
         self.log_textbox.insert("0.0", "System Ready...\n")
 
+        # Quit Button
+        self.btn_quit = ctk.CTkButton(self.controls_frame, text="QUIT APP", fg_color="darkred", hover_color="red", command=self.on_closing)
+        self.btn_quit.pack(pady=(0, 20), padx=20, fill="x")
+
     def _start_camera(self):
         self.video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         self._update_camera()
