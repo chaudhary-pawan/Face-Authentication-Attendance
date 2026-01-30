@@ -7,20 +7,13 @@ from liveness import LivenessDetector
 from deepface import DeepFace
 
 def main():
-    print("DEBUG: Initializing FaceManager...")
     face_manager = FaceManager()
-    
-    print("DEBUG: Initializing Logger...")
     logger = AttendanceLogger()
-    
-    print("DEBUG: Initializing Liveness...")
     liveness_detector = LivenessDetector()
 
-    print("DEBUG: Loading Face Cascade...")
     # Load face cascade for main detection
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-    print("DEBUG: Opening Camera (CAP_DSHOW)...")
     # CAP_DSHOW is faster/stable on Windows
     video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     
@@ -28,12 +21,12 @@ def main():
         print("ERROR: Camera Failed to Open!")
         return
 
-    print("DEBUG: System Starting Loop...")
+    print("System Started.")
     print("Controls:")
     print("  'r' - Register (Terminal Input)")
     print("  'i' - Punch IN")
     print("  'o' - Punch OUT")
-    print("  'q' - Quit")
+    print("  'q' - Quit (Click Camera Window first)")
     
     message = "System Ready"
     message_color = (0, 255, 0)
