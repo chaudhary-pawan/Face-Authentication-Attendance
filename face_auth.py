@@ -46,16 +46,32 @@ class FaceManager:
         except Exception as e:
             return None
 
-    def register_face(self, image, name):
+    def register_face(self, image, name, old_name=None):
         """
-        Registers a new face.
+        Registers a new face. 
+        If old_name is provided, it deletes the previous image (renaming the user).
         """
         try:
             DeepFace.extract_faces(img_path=image, enforce_detection=True)
         except:
              return False, "No face detected."
         
-        # Save image
+        # Validation: Don't allow same name overwrite if we passed it as old_name (edge case)
+        if old_name and old_name.lower() == name.lower():
+            old_name = None # Treat as update
+
+        # Delete old file if this is a rename operation
+        if old_name:
+            old_filename = f"{old_name}.jpg"
+            old_filepath = os.path.join(self.db_path, old_filename)
+            if os.path.exists(old_filepath):
+                try:
+                    os.remove(old_filepath)
+                    print(f"[INFO] Deleted old record: {old_filename}")
+                except Exception as e:
+                    print(f"[WARNING] Could not delete old file: {e}")
+
+        # Save new image
         filename = f"{name}.jpg"
         filepath = os.path.join(self.db_path, filename)
         
