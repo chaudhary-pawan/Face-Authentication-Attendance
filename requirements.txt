@@ -6,4 +6,4 @@ deepface
 customtkinter
 pillow
 streamlit
-watchdogas
+watchdog
