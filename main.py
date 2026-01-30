@@ -157,8 +157,8 @@ class AttendanceApp(ctk.CTk):
         self.log_textbox.insert("0.0", "System Ready...\n")
 
         # Quit Button
-        self.btn_quit = ctk.CTkButton(self.controls_frame, text="QUIT APP", fg_color="darkred", hover_color="red", command=self.on_closing)
-        self.btn_quit.pack(pady=(0, 20), padx=20, fill="x")
+        self.btn_quit = ctk.CTkButton(self.controls_frame, text="QUIT APP", height=40, fg_color="darkred", hover_color="red", command=self.on_closing)
+        self.btn_quit.pack(pady=20, padx=20, fill="x")
 
     def _start_camera(self):
         self.video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -206,11 +206,11 @@ class AttendanceApp(ctk.CTk):
     def action_register(self):
         name = self.entry_name.get().strip()
         if not name:
-             messagebox.showwarning("Input Error", "Please enter a name first.")
+             CTkMessagebox(title="Input Error", message="Please enter a name first.", icon="warning")
              return
              
         if self.current_frame is None:
-             messagebox.showerror("Camera Error", "No camera availability.")
+             CTkMessagebox(title="Camera Error", message="No camera availability.", icon="cancel")
              return
 
         # Smart Duplicate Check
@@ -220,21 +220,21 @@ class AttendanceApp(ctk.CTk):
             # Found a match!
             if existing_name.lower() == name.lower():
                  # Same name, just updating photo?
-                 confirm = messagebox.askyesno("Update Photo", f"User '{existing_name}' already exists.\nUpdate their photo?")
+                 msg = CTkMessagebox(title="Update Photo", message=f"User '{existing_name}' already exists.\nUpdate their photo?", icon="question", option_1="Yes", option_2="No")
             else:
                  # Different name, same face!
-                 confirm = messagebox.askyesno("Duplicate Face", f"This face currently belongs to '{existing_name}'.\nAre you sure you want to register as '{name}'?\nThis will overwrite the name.")
+                 msg = CTkMessagebox(title="Duplicate Face", message=f"This face currently belongs to '{existing_name}'.\nAre you sure you want to register as '{name}'?\nThis will overwrite the name.", icon="question", option_1="Yes", option_2="No")
             
-            if not confirm:
+            if msg.get() != "Yes":
                 return
 
         # Proceed
         success, msg = self.face_manager.register_face(self.current_frame, name)
         if success:
-             messagebox.showinfo("Success", msg)
+             CTkMessagebox(title="Success", message=msg, icon="check")
              self.log_textbox.insert("0.0", f"Registered: {name}\n")
         else:
-             messagebox.showerror("Error", msg)
+             CTkMessagebox(title="Error", message=msg, icon="cancel")
 
     def action_punch_in(self):
         self._handle_attendance("Punch In")
@@ -247,7 +247,7 @@ class AttendanceApp(ctk.CTk):
         
         # Check Liveness First
         if self.liveness_detector.total_blinks == 0:
-             messagebox.showwarning("Security Alert", "Please blink your eyes to prove you are human!")
+             CTkMessagebox(title="Security Alert", message="Please blink your eyes to prove you are human!", icon="warning")
              return
         
         # Identify
@@ -260,9 +260,9 @@ class AttendanceApp(ctk.CTk):
             res = self.logger.mark_attendance(name, action)
             self.lbl_name.configure(text=f"Name: {name}")
             self.log_textbox.insert("0.0", f"{res}\n")
-            messagebox.showinfo(f"Welcome {name}", f"{action} Successful!")
+            CTkMessagebox(title=f"Welcome {name}", message=f"{action} Successful", icon="check")
         else:
-            messagebox.showerror("Access Denied", "Face not recognized. Please Register.")
+            CTkMessagebox(title="Access Denied", message="Face not recognized. Please Register.", icon="cancel")
 
     def on_closing(self):
         self.is_running = False
