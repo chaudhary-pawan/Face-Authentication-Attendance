@@ -118,13 +118,13 @@ class AttendanceApp(ctk.CTk):
         self.video_label = ctk.CTkLabel(self.camera_frame, text="Loading Camera...", text_color="gray")
         self.video_label.pack(expand=True, fill="both")
         
-        # --- Right Frame (Controls) ---
-        self.controls_frame = ctk.CTkFrame(self, width=300)
-        self.controls_frame.grid(row=0, column=1, padx=(0, 20), pady=20, sticky="ns")
+        # --- Right Frame (Controls) - SCROLLABLE ---
+        self.controls_frame = ctk.CTkScrollableFrame(self, width=300, label_text="Control Panel")
+        self.controls_frame.grid(row=0, column=1, padx=(0, 20), pady=20, sticky="nsew")
         
-        # Header
-        self.logo_label = ctk.CTkLabel(self.controls_frame, text="Attendance System", font=("Arial", 24, "bold"))
-        self.logo_label.pack(pady=30)
+        # Header (Logo moved to label_text or inside)
+        # self.logo_label = ctk.CTkLabel(self.controls_frame, text="Attendance System", font=("Arial", 24, "bold"))
+        # self.logo_label.pack(pady=30)
         
         # Status Box
         self.status_frame = ctk.CTkFrame(self.controls_frame, fg_color="#333333")
@@ -138,10 +138,10 @@ class AttendanceApp(ctk.CTk):
         
         # Actions
         self.btn_punch_in = ctk.CTkButton(self.controls_frame, text="PUNCH IN", height=50, fg_color="green", hover_color="darkgreen", command=self.action_punch_in)
-        self.btn_punch_in.pack(pady=20, padx=20, fill="x")
+        self.btn_punch_in.pack(pady=10, padx=20, fill="x")
         
         self.btn_punch_out = ctk.CTkButton(self.controls_frame, text="PUNCH OUT", height=50, fg_color="red", hover_color="darkred", command=self.action_punch_out)
-        self.btn_punch_out.pack(pady=(0, 20), padx=20, fill="x")
+        self.btn_punch_out.pack(pady=10, padx=20, fill="x")
         
         # Registration Section
         ctk.CTkLabel(self.controls_frame, text="New User Registration").pack(pady=(20, 5))
@@ -152,13 +152,13 @@ class AttendanceApp(ctk.CTk):
         self.btn_register.pack(pady=10, padx=20, fill="x")
         
         # Log View
-        self.log_textbox = ctk.CTkTextbox(self.controls_frame, height=150)
+        self.log_textbox = ctk.CTkTextbox(self.controls_frame, height=120)
         self.log_textbox.pack(pady=20, padx=20, fill="x")
         self.log_textbox.insert("0.0", "System Ready...\n")
 
         # Quit Button
         self.btn_quit = ctk.CTkButton(self.controls_frame, text="QUIT APP", height=40, fg_color="darkred", hover_color="red", command=self.on_closing)
-        self.btn_quit.pack(pady=20, padx=20, fill="x")
+        self.btn_quit.pack(pady=(10, 30), padx=20, fill="x")
 
     def _start_camera(self):
         self.video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -215,14 +215,17 @@ class AttendanceApp(ctk.CTk):
 
         # Smart Duplicate Check
         existing_name = self.face_manager.check_existing_face(self.current_frame)
+        registration_type = "Registration (New)"
         
         if existing_name:
             # Found a match!
             if existing_name.lower() == name.lower():
-                 # Same name, just updating photo?
+                 # Same name
+                 registration_type = "Registration (Update Photo)"
                  msg = CTkMessagebox(title="Update Photo", message=f"User '{existing_name}' already exists.\nUpdate their photo?", icon="question", option_1="Yes", option_2="No")
             else:
-                 # Different name, same face!
+                 # Duplicate Face
+                 registration_type = f"Registration (Overwrite {existing_name})"
                  msg = CTkMessagebox(title="Duplicate Face", message=f"This face currently belongs to '{existing_name}'.\nAre you sure you want to register as '{name}'?\nThis will overwrite the name.", icon="question", option_1="Yes", option_2="No")
             
             if msg.get() != "Yes":
@@ -231,8 +234,13 @@ class AttendanceApp(ctk.CTk):
         # Proceed
         success, msg = self.face_manager.register_face(self.current_frame, name)
         if success:
+             # SUCCESS ICON (Checkmark) 
              CTkMessagebox(title="Success", message=msg, icon="check")
-             self.log_textbox.insert("0.0", f"Registered: {name}\n")
+             
+             # LOGGING THE REGISTRATION
+             log_msg = self.logger.mark_attendance(name, registration_type)
+             
+             self.log_textbox.insert("0.0", f"{log_msg}\n")
         else:
              CTkMessagebox(title="Error", message=msg, icon="cancel")
 
