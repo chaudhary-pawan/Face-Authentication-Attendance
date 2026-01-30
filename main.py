@@ -105,6 +105,27 @@ class AttendanceApp(ctk.CTk):
         self._setup_ui()
         self._start_camera()
         
+        # Start Background Identification Thread
+        threading.Thread(target=self._auto_identify_loop, daemon=True).start()
+        
+    def _auto_identify_loop(self):
+        """Runs heavy AI identification in background to keep UI smooth."""
+        import time
+        while self.is_running:
+            if self.current_frame is not None and len(self.face_cascade.detectMultiScale(cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY), 1.3, 5)) > 0:
+                # Only try to identify if a face is actually present
+                name, dist = self.face_manager.identify_face(self.current_frame)
+                self.detected_name = name
+                
+                # Update UI from main thread
+                if name != "Unknown":
+                    self.lbl_name.configure(text=f"Name: {name}", text_color="green")
+                else:
+                    self.lbl_name.configure(text=f"Name: Unknown", text_color="white")
+            
+            # Check every 0.8 seconds (Balance between speed and CPU)
+            time.sleep(0.8)
+
     def _setup_ui(self):
         # Grid Layout
         self.grid_columnconfigure(0, weight=1) # Left: Camera
@@ -216,6 +237,7 @@ class AttendanceApp(ctk.CTk):
         # Smart Duplicate Check
         existing_name = self.face_manager.check_existing_face(self.current_frame)
         registration_type = "Registration (New)"
+        old_name_to_delete = None
         
         if existing_name:
             # Found a match!
@@ -226,13 +248,14 @@ class AttendanceApp(ctk.CTk):
             else:
                  # Duplicate Face
                  registration_type = f"Registration (Overwrite {existing_name})"
+                 old_name_to_delete = existing_name # Mark for deletion
                  msg = CTkMessagebox(title="Duplicate Face", message=f"This face currently belongs to '{existing_name}'.\nAre you sure you want to register as '{name}'?\nThis will overwrite the name.", icon="question", option_1="Yes", option_2="No")
             
             if msg.get() != "Yes":
                 return
 
         # Proceed
-        success, msg = self.face_manager.register_face(self.current_frame, name)
+        success, msg = self.face_manager.register_face(self.current_frame, name, old_name=old_name_to_delete)
         if success:
              # SUCCESS ICON (Checkmark) 
              CTkMessagebox(title="Success", message=msg, icon="check")
