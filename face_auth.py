@@ -10,10 +10,16 @@ class FaceManager:
         if not os.path.exists(self.db_path):
             os.makedirs(self.db_path)
             
-        # DeepFace finds images in the db_path automatically for 'find' mode
-        # But for real-time consistency, we'll maintain our own simple registry 
-        # or rely on DeepFace.find which handles a folder of images.
         print(f"[INFO] Face DB at {self.db_path}")
+        
+        # Pre-load the model to ensure weights are downloaded BEFORE the UI starts
+        # This prevents the "Not Responding" freeze on first Punch In
+        print("[INFO] Loading AI Model (VGG-Face)... Please wait...")
+        try:
+            DeepFace.build_model("VGG-Face")
+            print("[INFO] Model Loaded Successfully.")
+        except Exception as e:
+            print(f"[WARNING] Model load deferred: {e}")
 
     def register_face(self, image, name):
         """
