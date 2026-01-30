@@ -21,30 +21,48 @@ class FaceManager:
         except Exception as e:
             print(f"[WARNING] Model load deferred: {e}")
 
+    def check_existing_face(self, image):
+        """
+        Checks if the face in 'image' already exists in the DB under any name.
+        Returns: (Name, Distance) if found, else None
+        """
+        try:
+            if not os.listdir(self.db_path):
+                return None
+
+            # Search for the face
+            dfs = DeepFace.find(img_path=image, db_path=self.db_path, model_name="VGG-Face", enforce_detection=True, silent=True, threshold=0.40)
+            
+            if len(dfs) > 0:
+                df = dfs[0]
+                if not df.empty:
+                    # Found a match
+                    full_path = df.iloc[0]["identity"]
+                    filename = os.path.basename(full_path)
+                    existing_name = os.path.splitext(filename)[0]
+                    # Clean up name (remove numbers if we handle multiple pics per user later)
+                    return existing_name
+            return None
+        except Exception as e:
+            return None
+
     def register_face(self, image, name):
         """
-        Registers a new face by saving the image to the data directory.
-        DeepFace will automatically pick it up next time or we can force it.
+        Registers a new face.
         """
-        # Check if face is present using extract_faces (fast check)
         try:
-            # We enforce detection here to ensure a face exists
             DeepFace.extract_faces(img_path=image, enforce_detection=True)
         except:
-             return False, "No face detected or poor quality."
+             return False, "No face detected."
         
         # Save image
         filename = f"{name}.jpg"
         filepath = os.path.join(self.db_path, filename)
         
-        # Handle duplicates
-        if os.path.exists(filepath):
-            # Allow overwrite or append timestamp
-            return False, f"User {name} already exists."
-
+        # If the file for THIS name exists, we are simply updating that user's photo.
         cv2.imwrite(filepath, image)
         
-        # Remove representation pickle if deepface created one, to force refresh
+        # Remove pickl to force refresh
         pkl_path = os.path.join(self.db_path, "representations_vgg_face.pkl")
         if os.path.exists(pkl_path):
             os.remove(pkl_path)
@@ -54,25 +72,16 @@ class FaceManager:
     def identify_face(self, image):
         """
         Identifies a face.
-        Returns: name (or "Unknown"), confidence (distance)
         """
-        # DeepFace.find is powerful but can be slow for every frame.
-        # We'll try to just compare against the DB.
-        
         try:
-            # Check if directory is empty
             if not os.listdir(self.db_path):
                 return "Unknown", 0.0
 
-            # Run search
-            # silent=True to avoid console spam
             dfs = DeepFace.find(img_path=image, db_path=self.db_path, model_name="VGG-Face", enforce_detection=False, silent=True)
             
             if len(dfs) > 0:
                 df = dfs[0]
                 if not df.empty:
-                    # df results: identity, distance, source_x, source_y...
-                    # identity is the absolute path
                     full_path = df.iloc[0]["identity"]
                     filename = os.path.basename(full_path)
                     name = os.path.splitext(filename)[0]
@@ -80,7 +89,5 @@ class FaceManager:
                     return name, distance
             
             return "Unknown", 0.0
-            
-        except Exception as e:
-            # print(f"Error in identify: {e}") 
+        except:
             return "Unknown", 0.0
