@@ -47,7 +47,7 @@ A Python-based Face Authentication System for tracking attendance, featuring rea
 
 ### Accuracy Expectations
 - **LFW Benchmark**: The underlying model has ~99.38% accuracy on the LFW benchmark.
-- **Real-world**: Highly accurate for frontal faces. Accuracy decreases with extreme angles, occlusions (masks/glasses), or poor lighting.
+- **Real-world**: Highly accurate for frontal faces. Accuracy decreases with extreme angles, occlusions (masks/glasses).
 
 ### Known Failure Cases
 - **Lighting**: Strong backlighting or very low light can fail detection.
