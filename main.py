@@ -58,12 +58,17 @@ class AttendanceApp(ctk.CTk):
                 # To avoid lag, we only Identify. Detection is done in UI thread for visuals.
                 
                 # Double check presence (Fast check)
-                small_frame = cv2.resize(self.current_frame, (0,0), fx=0.25, fy=0.25)
-                # rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB) # Not needed for Haar
-                gray_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
-                
-                # results = self.face_detection.process(rgb_small) # Removed
-                faces = self.face_cascade.detectMultiScale(gray_small, 1.1, 4)
+                try:
+                    small_frame = cv2.resize(self.current_frame, (0,0), fx=0.25, fy=0.25)
+                    gray_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+                    
+                    if gray_small.shape[0] < 30 or gray_small.shape[1] < 30:
+                        continue
+                        
+                    faces = self.face_cascade.detectMultiScale(gray_small, 1.1, 4)
+                except Exception as e:
+                    print(f"Background Detection Error: {e}")
+                    continue
                 
                 if len(faces) > 0:
                     # Face Present -> Identify
