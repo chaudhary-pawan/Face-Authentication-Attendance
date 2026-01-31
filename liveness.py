@@ -62,3 +62,22 @@ class LivenessDetector:
         fake_ear = 0.3 if num_eyes >= 1 else 0.0
         
         return fake_ear, is_blinking, self.total_blinks
+
+    def get_eye_status(self, frame, face_roi_coords):
+        """
+        Stateless check for eye openness. Used for Web App snapshots.
+        Returns: 'Open' or 'Closed'
+        """
+        if self.eye_cascade is None or face_roi_coords is None:
+             return "Unknown"
+             
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        (x, y, w, h) = face_roi_coords
+        roi_gray = gray[y:y+h, x:x+w]
+        
+        eyes = self.eye_cascade.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=10, minSize=(20, 20))
+        
+        if len(eyes) >= 1:
+            return "Open" # At least one eye visible
+        else:
+            return "Closed" # No eyes found (Blink or Occlusion)
