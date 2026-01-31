@@ -8,76 +8,8 @@ from CTkMessagebox import CTkMessagebox # Modern MessageBox
 from face_auth import FaceManager
 from attendance import AttendanceLogger
 from liveness import LivenessDetector
-
-# ... (Theme settings remain same) ...
-
-class AttendanceApp(ctk.CTk):
-    # ... (__init__ remains same) ...
-
-    def action_register(self):
-        name = self.entry_name.get().strip()
-        if not name:
-             CTkMessagebox(title="Input Error", message="Please enter a name first.", icon="warning")
-             return
-             
-        if self.current_frame is None:
-             CTkMessagebox(title="Camera Error", message="No camera availability.", icon="cancel")
-             return
-
-        # Smart Duplicate Check
-        existing_name = self.face_manager.check_existing_face(self.current_frame)
-        
-        if existing_name:
-            # Found a match!
-            if existing_name.lower() == name.lower():
-                 # Same name
-                 msg = CTkMessagebox(title="Update Photo", message=f"User '{existing_name}' already exists.\nUpdate their photo?", icon="question", option_1="Yes", option_2="No")
-            else:
-                 # Duplicate Face
-                 msg = CTkMessagebox(title="Duplicate Face", message=f"This face currently belongs to '{existing_name}'.\nAre you sure you want to register as '{name}'?\nThis will overwrite the name.", icon="question", option_1="Yes", option_2="No")
-            
-            if msg.get() != "Yes":
-                return
-
-        # Proceed
-        success, msg = self.face_manager.register_face(self.current_frame, name)
-        if success:
-             # SUCCESS ICON (Checkmark) 
-             CTkMessagebox(title="Success", message=msg, icon="check")
-             self.log_textbox.insert("0.0", f"Registered: {name}\n")
-        else:
-             CTkMessagebox(title="Error", message=msg, icon="cancel")
-
-    def action_punch_in(self):
-        self._handle_attendance("Punch In")
-
-    def action_punch_out(self):
-        self._handle_attendance("Punch Out")
-
-    def _handle_attendance(self, action):
-        if self.current_frame is None: return
-        
-        # Check Liveness First
-        if self.liveness_detector.total_blinks == 0:
-             CTkMessagebox(title="Security Alert", message="Please blink your eyes to prove you are human!", icon="warning")
-             return
-        
-        # Identify
-        self.log_textbox.insert("0.0", "Identifying...\n")
-        
-        # Run identification
-        name, dist = self.face_manager.identify_face(self.current_frame)
-        
-        if name != "Unknown":
-            res = self.logger.mark_attendance(name, action)
-            self.lbl_name.configure(text=f"Name: {name}")
-            self.log_textbox.insert("0.0", f"{res}\n")
-            
-            # SUCCESS ICON (Checkmark)
-            CTkMessagebox(title=f"Welcome {name}", message=f"{action} Successful", icon="check")
-        else:
-            CTkMessagebox(title="Access Denied", message="Face not recognized. Please Register.", icon="cancel")
-
+    # import mediapipe as mp # Removed due to incompatibility
+    
 # Theme Settings
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -93,6 +25,10 @@ class AttendanceApp(ctk.CTk):
         self.face_manager = FaceManager()
         self.logger = AttendanceLogger()
         self.liveness_detector = LivenessDetector()
+        
+        # --- SWITCH: Use OpenCV Haar Cascade ---
+        # self.mp_face_detection = mp.solutions.face_detection # Removed
+        # self.face_detection = self.mp_face_detection.FaceDetection(...) # Removed
         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         
         # State
@@ -112,19 +48,38 @@ class AttendanceApp(ctk.CTk):
         """Runs heavy AI identification in background to keep UI smooth."""
         import time
         while self.is_running:
-            if self.current_frame is not None and len(self.face_cascade.detectMultiScale(cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2GRAY), 1.3, 5)) > 0:
-                # Only try to identify if a face is actually present
-                name, dist = self.face_manager.identify_face(self.current_frame)
-                self.detected_name = name
+            # We need a copy of the frame safely
+            if self.current_frame is not None:
+                # Reuse MediaPipe result if possible, or just re-run identification on the whole frame
+                # DeepFace has its own detection, but we can pass the cropped face if we want.
+                # For simplicity in this thread, let DeepFace handle it but use a faster backend like ssd if possible,
+                # OR just rely on the main thread's detection signal.
                 
-                # Update UI from main thread
-                if name != "Unknown":
-                    self.lbl_name.configure(text=f"Name: {name}", text_color="green")
+                # To avoid lag, we only Identify. Detection is done in UI thread for visuals.
+                
+                # Double check presence (Fast check)
+                small_frame = cv2.resize(self.current_frame, (0,0), fx=0.25, fy=0.25)
+                # rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB) # Not needed for Haar
+                gray_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+                
+                # results = self.face_detection.process(rgb_small) # Removed
+                faces = self.face_cascade.detectMultiScale(gray_small, 1.1, 4)
+                
+                if len(faces) > 0:
+                    # Face Present -> Identify
+                    name, dist = self.face_manager.identify_face(self.current_frame)
+                    self.detected_name = name
+                    
+                    # Update UI from main thread
+                    if name != "Unknown":
+                        self.lbl_name.configure(text=f"Name: {name}", text_color="green")
+                    else:
+                        self.lbl_name.configure(text=f"Name: Unknown", text_color="white")
                 else:
-                    self.lbl_name.configure(text=f"Name: Unknown", text_color="white")
+                    self.detected_name = "Unknown"
             
-            # Check every 0.8 seconds (Balance between speed and CPU)
-            time.sleep(0.8)
+            # Check every 0.5 seconds
+            time.sleep(0.5)
 
     def _setup_ui(self):
         # Grid Layout
@@ -194,29 +149,37 @@ class AttendanceApp(ctk.CTk):
             frame = cv2.flip(frame, 1) # Mirror effect
             self.current_frame = frame.copy()
             
-            # Processing
+            # --- OpenCV Haar Detection ---
+            # rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Not needed for Haar
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # results = self.face_detection.process(rgb_frame) # Removed
             faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
             
             face_coords = None
+            
             if len(faces) > 0:
+                # Get the largest face (closest)
+                # faces returns (x, y, w, h)
                 faces = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)
                 (x, y, w, h) = faces[0]
+                
                 face_coords = (x, y, w, h)
                 
                 # Draw
                 color = (0, 255, 0) if self.detected_name != "Unknown" else (0, 0, 255)
                 cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
                 
+                # Check Liveness (using new coords)
                 fake_ear, is_blinking, total_blinks = self.liveness_detector.check_liveness(frame, face_coords)
                 self.lbl_liveness.configure(text=f"Blinks: {total_blinks}", text_color="green" if total_blinks > 0 else "orange")
             else:
-                self.lbl_liveness.configure(text="No Face", text_color="red")
-                self.detected_name = "Unknown"
+                 self.lbl_liveness.configure(text="No Face", text_color="red")
+                 self.detected_name = "Unknown"
 
             # Convert to ImageTk
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(img)
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # Needed for Display
+            img = Image.fromarray(rgb_frame)
             
             ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(800, 600))
             self.video_label.configure(image=ctk_img, text="")
@@ -233,6 +196,9 @@ class AttendanceApp(ctk.CTk):
         if self.current_frame is None:
              CTkMessagebox(title="Camera Error", message="No camera availability.", icon="cancel")
              return
+        
+        # Need coordinates for registration to be accurate?
+        # FaceManager extracts internally via DeepFace, so raw frame is fine.
 
         # Smart Duplicate Check
         existing_name = self.face_manager.check_existing_face(self.current_frame)
@@ -278,7 +244,7 @@ class AttendanceApp(ctk.CTk):
         
         # Check Liveness First
         if self.liveness_detector.total_blinks == 0:
-             CTkMessagebox(title="Security Alert", message="Please blink your eyes to prove you are human!", icon="warning")
+             CTkMessagebox(title="Security Alert", message="Please blink your eyes to prove you are human!", icon="warning", option_1="OK")
              return
         
         # Identify
@@ -291,7 +257,8 @@ class AttendanceApp(ctk.CTk):
             res = self.logger.mark_attendance(name, action)
             self.lbl_name.configure(text=f"Name: {name}")
             self.log_textbox.insert("0.0", f"{res}\n")
-            CTkMessagebox(title=f"Welcome {name}", message=f"{action} Successful", icon="check")
+            # SUCCESS ICON (Checkmark)
+            CTkMessagebox(title=f"Welcome {name}", message=f"{action} Successful", icon="check", option_1="OK")
         else:
             CTkMessagebox(title="Access Denied", message="Face not recognized. Please Register.", icon="cancel")
 

@@ -140,6 +140,8 @@ with tab2:
                     st.session_state.logger.mark_attendance(new_name, "Registration")
                 else:
                     st.error(msg)
+    
+
 
 with tab3:
     st.header("Attendance Logs")

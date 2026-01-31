@@ -31,7 +31,8 @@ class FaceManager:
                 return None
 
             # Search for the face
-            dfs = DeepFace.find(img_path=image, db_path=self.db_path, model_name="VGG-Face", enforce_detection=True, silent=True, threshold=0.40)
+            # Threshold 0.50 is slightly more lenient to catch "Same person, different lighting"
+            dfs = DeepFace.find(img_path=image, db_path=self.db_path, model_name="VGG-Face", enforce_detection=True, silent=True, threshold=0.50)
             
             if len(dfs) > 0:
                 df = dfs[0]
@@ -107,3 +108,22 @@ class FaceManager:
             return "Unknown", 0.0
         except:
             return "Unknown", 0.0
+
+    def delete_user(self, name):
+        """
+        Deletes a user's face record.
+        """
+        filename = f"{name}.jpg"
+        filepath = os.path.join(self.db_path, filename)
+        
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+                # Force cache clear
+                pkl_path = os.path.join(self.db_path, "representations_vgg_face.pkl")
+                if os.path.exists(pkl_path):
+                    os.remove(pkl_path)
+                return True, f"Deleted {name}."
+            except Exception as e:
+                return False, str(e)
+        return False, "User not found."
