@@ -1,55 +1,68 @@
 # Face Authentication Attendance System
 
-A Python-based Face Authentication System for tracking attendance, featuring real-time face recognition and liveness detection.
+A robust, Python-based Face Authentication System for tracking attendance. It features real-time face recognition, liveness detection to prevent photo spoofing, and a modern GUI.
 
-## Features
-- **Face Registration**: Capture and save user face encodings.
-- **Face Identification**: Real-time recognition of registered users.
-- **Liveness Detection**: Blink detection to prevent basic photo spoofing.
-- **Attendance Logging**: Punch-in/Punch-out with timestamps saved to CSV.
+## 🚀 Features
+- **Two Interface Modes**:
+  - **Desktop App**: Modern Dark Mode GUI (via `CustomTkinter`) for high-performance, real-time logging.
+  - **Web Dashboard**: Lightweight Web App (via `Streamlit`) for easy access and mobile testing.
+- **Face Recognition**: Uses **VGG-Face** (Deep Learning) for high-accuracy identification.
+- **Liveness Detection**: Blink detection to ensure the user is present (prevents holding up a photo).
+- **Attendance Logging**: Automatically logs "Punch In" and "Punch Out" events with timestamps to CSV.
+- **One-Shot Registration**: Instantly register new users without re-training the model.
 
-## Requirements
-- Python 3.8+
-- Webcam
+## 🛠️ Technology Stack
+- **Language**: Python 3.12+
+- **Computer Vision**: OpenCV (Haar Cascades)
+- **AI Model**: VGG-Face (via `deepface`)
+- **GUI**: CustomTkinter
+- **Web Framework**: Streamlit
 
-## Installation
+## 📦 Installation
 
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   *Note: `face_recognition` depends on `dlib`. If installation fails on Windows, you may need to install `cmake` and Visual Studio C++ compilers or use a pre-built wheel for `dlib`.*
+1.  **Clone the Repository** and enter the directory.
+2.  **Create a Virtual Environment** (Recommended):
+    ```bash
+    python -m venv venv
+    # Windows:
+    .\venv\Scripts\activate
+    # Mac/Linux:
+    source venv/bin/activate
+    ```
+3.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-## Usage
+## 🖥️ Usage
 
-1. Run the application:
-   ```bash
-   python main.py
-   ```
+### Option 1: Desktop Application (Recommended)
+This is the main application with real-time video feedback and blink counting.
 
-2. **Controls**:
-   - `r`: **Register** a new face. (Look at the camera, press 'r', then enter name in the terminal).
-   - `i`: **Punch In**. (Marks attendance if face is recognized and "live").
-   - `o`: **Punch Out**.
-   - `q`: **Quit**.
+```bash
+python main.py
+```
 
-## System Details
+**Controls:**
+- **Register Face**: Enter a name in the text box and click "Register Face".
+- **Punch In**: Click the Green button. (Requires looking at the camera and blinking).
+- **Punch Out**: Click the Red button.
+- **Logs**: View recent logs instantly in the text panel.
 
-### Model & Approach
-- **Face Detection**: Uses HOG (Histogram of Oriented Gradients) via `dlib` (wrapped in `face_recognition`). 
-- **Face Encoding**: A ResNet-34 based deep metric learning model that outputs a 128-d vector (embedding) for each face.
-- **Matching**: Calculates Euclidean distance between embeddings. If distance < 0.6 (default threshold), a match is declared.
-- **Liveness**: Uses Eye Aspect Ratio (EAR) based on facial landmarks (68-point model). A user must blink (EAR drops below threshold) to verify they are "live".
+### Option 2: Web Application
+A browser-based version suitable for quick checks or remote access.
 
-### Training Process
-- The system uses a **pre-trained** model (trained on ~3 million faces from standard datasets like Labeled Faces in the Wild). No custom training is required for basic usage. 
-- "Registration" simply means saving the 128-d embedding of a new user to `data/encodings.pkl`.
+```bash
+python -m streamlit run app.py
+```
 
-### Accuracy Expectations
-- **LFW Benchmark**: The underlying model has ~99.38% accuracy on the LFW benchmark.
-- **Real-world**: Highly accurate for frontal faces. Accuracy decreases with extreme angles, occlusions (masks/glasses).
+## 📄 Documentation
+For a detailed technical explanation of the models, algorithms, and failure cases, please refer to the **[Technical Report (PDF)](REPORT.pdf)** included in this repository.
 
-### Known Failure Cases
-- **Lighting**: Strong backlighting or very low light can fail detection.
-- **Angles**: Side profiles (>45 degrees) may not be detected.
-- **Spoofing**: High-quality video replays might bypass the blink detector (replay attack). Advanced liveness (depth sensors, texture analysis) would be needed for higher security.
+## 📂 Project Structure
+- `main.py`: Entry point for the Desktop GUI App.
+- `app.py`: Entry point for the Streamlit Web App.
+- `face_auth.py`: Core logic for Face Recognition (DeepFace).
+- `liveness.py`: Logic for Blink Detection.
+- `data/`: Stores registered face embeddings.
+- `logs/`: Stores daily CSV attendance logs.
