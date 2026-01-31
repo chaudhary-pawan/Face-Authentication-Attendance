@@ -77,7 +77,7 @@ class LivenessDetector:
         
         eyes = self.eye_cascade.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=10, minSize=(20, 20))
         
-        if len(eyes) >= 1:
-            return "Open" # At least one eye visible
+        if len(eyes) >= 2:
+            return "Open" # Both eyes must be visible (Stricter)
         else:
-            return "Closed" # No eyes found (Blink or Occlusion)
+            return "Closed" # 0 or 1 eye not enough (Could be blink or quirk)
