@@ -33,7 +33,7 @@ with tab1:
     st.header("Mark Attendance")
     
     # Camera Input
-    img_file_buffer = st.camera_input("Take a photo to punch in/out")
+    img_file_buffer = st.camera_input("📸 Take a photo to Verify Liveness & Punch In")
     
     if img_file_buffer is not None:
         # Convert to OpenCV format
@@ -42,7 +42,8 @@ with tab1:
         
         # 1. Detect Face First (Needed for Liveness)
         gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+        # Tuned parameters: 1.1 scale (more sensitive), 4 neighbors (less strict)
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
         
         eye_status = "Unknown"
         
